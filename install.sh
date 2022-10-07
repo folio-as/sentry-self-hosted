@@ -15,7 +15,7 @@ source error-handling.sh
 source check-minimum-requirements.sh
 source create-docker-volumes.sh
 source ensure-files-from-examples.sh
-source generate-secret-key.sh
+# source generate-secret-key.sh
 source replace-tsdb.sh
 source update-docker-images.sh
 source build-docker-images.sh
