@@ -1,16 +1,12 @@
 #!/bin/bash
 set -e
 
-req_file="/etc/sentry/requirements.txt"
-plugins_dir="/data/custom-packages"
-checksum_file="$plugins_dir/.checksum"
+if [ "$(ls -A /usr/local/share/ca-certificates/)" ]; then
+  update-ca-certificates
+fi
 
-if [[ -s "$req_file" ]] && ! cat "$req_file" | grep '^[^#[:space:]]' | shasum -s -c "$checksum_file" 2>/dev/null; then
-    echo "Installing additional dependencies..."
-    mkdir -p "$plugins_dir"
-    pip install --user -r "$req_file"
-    cat "$req_file" | grep '^[^#[:space:]]' | shasum > "$checksum_file"
-    echo ""
+if [ -e /etc/sentry/requirements.txt ]; then
+  echo "sentry/requirements.txt is deprecated, use sentry/enhance-image.sh - see https://github.com/getsentry/self-hosted#enhance-sentry-image"
 fi
 
 source /docker-entrypoint.sh
