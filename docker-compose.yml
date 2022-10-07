@@ -24,6 +24,8 @@ x-sentry-defaults: &sentry_defaults
     PYTHONUSERBASE: "/data/custom-packages"
     SENTRY_CONF: "/etc/sentry"
     SNUBA: "http://snuba-api:1218"
+    # Don't backfill events on upgrade from 9.1.2 to 10; it doesn't work for some reason
+    SENTRY_SKIP_EVENTS_BACKFILL_FOR_10: "1"
     # Leaving the value empty to just pass whatever is set
     # on the host system (or in the .env file)
     SENTRY_SECRET_KEY:
