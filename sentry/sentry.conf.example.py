@@ -88,6 +88,29 @@ SENTRY_OPTIONS["system.event-retention-days"] = int(
     env("SENTRY_EVENT_RETENTION_DAYS", "90")
 )
 
+def require_env(name):
+    value = env(name)
+    if not value:
+        raise Exception(f"Error: {name} must be set")
+    return value
+
+# Login with Google SSO
+SENTRY_OPTIONS["auth-google.client-id"]     = require_env("SENTRY_GOOGLE_CLIENT_ID")
+SENTRY_OPTIONS["auth-google.client-secret"] = require_env("SENTRY_GOOGLE_CLIENT_SECRET")
+
+# Slack client
+SENTRY_OPTIONS["slack.client-id"]          = require_env("SENTRY_SLACK_CLIENT_ID")
+SENTRY_OPTIONS["slack.client-secret"]      = require_env("SENTRY_SLACK_CLIENT_SECRET")
+SENTRY_OPTIONS["slack.verification-token"] = require_env("SENTRY_SLACK_VERIFICATION_TOKEN")
+
+# GitHub app
+SENTRY_OPTIONS["github-app.id"]             = int(require_env("SENTRY_GITHUB_APP_ID"))
+SENTRY_OPTIONS["github-app.name"]           = require_env("SENTRY_GITHUB_APP_NAME")
+SENTRY_OPTIONS["github-app.webhook-secret"] = env("SENTRY_GITHUB_APP_WEBHOOK_SECRET", "")
+SENTRY_OPTIONS["github-app.private-key"]    = require_env("SENTRY_GITHUB_APP_PRIVATE_KEY")
+SENTRY_OPTIONS["github-app.client-id"]      = require_env("SENTRY_GITHUB_APP_CLIENT_ID")
+SENTRY_OPTIONS["github-app.client-secret"]  = require_env("SENTRY_GITHUB_APP_CLIENT_SECRET")
+
 #########
 # Redis #
 #########
