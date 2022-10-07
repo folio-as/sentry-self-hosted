@@ -21,6 +21,7 @@ source update-docker-images.sh
 source build-docker-images.sh
 source turn-things-off.sh
 source set-up-zookeeper.sh
+source install-wal2json.sh
 source bootstrap-snuba.sh
 source create-kafka-topics.sh
 # source upgrade-postgres.sh
