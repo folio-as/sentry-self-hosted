@@ -4,7 +4,7 @@
 from sentry.conf.server import *  # NOQA
 
 
-# Generously adapted from pynetlinux: https://git.io/JJmga
+# Generously adapted from pynetlinux: https://github.com/rlisagor/pynetlinux/blob/e3f16978855c6649685f0c43d4c3fcf768427ae5/pynetlinux/ifconfig.py#L197-L223
 def get_internal_network():
     import ctypes
     import fcntl
@@ -32,15 +32,30 @@ def get_internal_network():
 
 INTERNAL_SYSTEM_IPS = (get_internal_network(),)
 
+postgres_host = env("SENTRY_POSTGRES_HOST")
+if not postgres_host:
+    raise Exception("Error: SENTRY_POSTGRES_HOST must be set")
+
+db_name = env("SENTRY_DB_NAME")
+if not db_name:
+    raise Exception("Error: SENTRY_DB_NAME must be set")
+
+db_user = env("SENTRY_DB_USER")
+if not db_user:
+    raise Exception("Error: SENTRY_DB_USER must be set")
+
+db_password = env("SENTRY_DB_PASSWORD")
+if not db_password:
+    raise Exception("Error: SENTRY_DB_PASSWORD must be set")
 
 DATABASES = {
     "default": {
         "ENGINE": "sentry.db.postgres",
-        "NAME": "postgres",
-        "USER": "postgres",
-        "PASSWORD": "",
-        "HOST": "postgres",
-        "PORT": "",
+        "NAME": db_name,
+        "USER": db_user,
+        "PASSWORD": db_password,
+        "HOST": postgres_host,
+        "PORT": (env("SENTRY_POSTGRES_PORT") or ""),
     }
 }
 
@@ -54,6 +69,16 @@ SENTRY_USE_BIG_INTS = True
 ###########
 # General #
 ###########
+
+# If this value ever becomes compromised, it's important to regenerate your
+# SENTRY_SECRET_KEY. Changing this value will result in all current sessions
+# being invalidated.
+secret_key = env("SENTRY_SECRET_KEY")
+if not secret_key:
+    raise Exception(
+        "Error: SENTRY_SECRET_KEY is undefined, run `generate-secret-key` and set to -e SENTRY_SECRET_KEY"
+    )
+SENTRY_OPTIONS["system.secret-key"] = secret_key
 
 # Instruct Sentry that this install intends to be run by a single organization
 # and thus various UI optimizations should be enabled.
@@ -187,7 +212,7 @@ SENTRY_WEB_PORT = 9000
 SENTRY_WEB_OPTIONS = {
     "http": "%s:%s" % (SENTRY_WEB_HOST, SENTRY_WEB_PORT),
     "protocol": "uwsgi",
-    # This is needed in order to prevent https://git.io/fj7Lw
+    # This is needed in order to prevent https://github.com/getsentry/sentry/blob/c6f9660e37fcd9c1bbda8ff4af1dcfd0442f5155/src/sentry/services/http.py#L70
     "uwsgi-socket": None,
     "so-keepalive": True,
     # Keep this between 15s-75s as that's what Relay supports
@@ -227,6 +252,13 @@ SENTRY_WEB_OPTIONS = {
 # SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
 
 # End of SSL/TLS settings
+
+########
+# Mail #
+########
+
+SENTRY_OPTIONS["mail.list-namespace"] = env('SENTRY_MAIL_HOST', 'localhost')
+SENTRY_OPTIONS["mail.from"] = f"sentry@{SENTRY_OPTIONS['mail.list-namespace']}"
 
 ############
 # Features #

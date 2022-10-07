@@ -5,6 +5,9 @@ if [[ -n "$MSYSTEM" ]]; then
   exit 1
 fi
 
+# Don't send reports to Sentry
+export REPORT_SELF_HOSTED_ISSUES="0"
+
 source "$(dirname $0)/install/_lib.sh"  # does a `cd .../install/`, among other things
 
 source parse-cli.sh
@@ -20,7 +23,7 @@ source turn-things-off.sh
 source set-up-zookeeper.sh
 source bootstrap-snuba.sh
 source create-kafka-topics.sh
-source upgrade-postgres.sh
+# source upgrade-postgres.sh
 source set-up-and-migrate-database.sh
 source migrate-file-storage.sh
 source relay-credentials.sh
