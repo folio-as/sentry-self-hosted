@@ -69,6 +69,7 @@ x-sentry-defaults: &sentry_defaults
     # Leaving the value empty to just pass whatever is set
     # on the host system (or in the .env file)
     SENTRY_SECRET_KEY:
+    SENTRY_URL_PREFIX:
     SENTRY_EVENT_RETENTION_DAYS:
     SENTRY_POSTGRES_HOST:
     SENTRY_DB_NAME:

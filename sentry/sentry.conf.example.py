@@ -94,6 +94,8 @@ def require_env(name):
         raise Exception(f"Error: {name} must be set")
     return value
 
+SENTRY_OPTIONS["system.url-prefix"] = require_env("SENTRY_URL_PREFIX")
+
 # Login with Google SSO
 SENTRY_OPTIONS["auth-google.client-id"]     = require_env("SENTRY_GOOGLE_CLIENT_ID")
 SENTRY_OPTIONS["auth-google.client-secret"] = require_env("SENTRY_GOOGLE_CLIENT_SECRET")
