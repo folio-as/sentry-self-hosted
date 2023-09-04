@@ -7,6 +7,9 @@ if [[ -n "$MSYSTEM" ]]; then
   exit 1
 fi
 
+# Don't send reports to Sentry
+export REPORT_SELF_HOSTED_ISSUES="0"
+
 source "$(dirname $0)/install/_lib.sh" # does a `cd .../install/`, among other things
 
 # Pre-flight. No impact yet.
@@ -24,10 +27,10 @@ source turn-things-off.sh
 source create-docker-volumes.sh
 source ensure-files-from-examples.sh
 source ensure-relay-credentials.sh
-source generate-secret-key.sh
+# source generate-secret-key.sh
 source update-docker-images.sh
 source build-docker-images.sh
-source install-wal2json.sh
+# source install-wal2json.sh
 source bootstrap-snuba.sh
 source create-kafka-topics.sh
 source set-up-and-migrate-database.sh
