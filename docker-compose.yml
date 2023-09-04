@@ -28,8 +28,6 @@ x-sentry-defaults: &sentry_defaults
       <<: *depends_on-healthy
     kafka:
       <<: *depends_on-healthy
-    postgres:
-      <<: *depends_on-healthy
     memcached:
       <<: *depends_on-default
     smtp:
@@ -69,13 +67,32 @@ x-sentry-defaults: &sentry_defaults
     REQUESTS_CA_BUNDLE: *ca_bundle
     # This one is used by grpc/google modules
     GRPC_DEFAULT_SSL_ROOTS_FILE_PATH_ENV_VAR: *ca_bundle
+    # Don't backfill events on upgrade from 9.1.2 to 10; it doesn't work for some reason
+    SENTRY_SKIP_EVENTS_BACKFILL_FOR_10: "1"
     # Leaving the value empty to just pass whatever is set
     # on the host system (or in the .env file)
+    SENTRY_SECRET_KEY:
+    SENTRY_URL_PREFIX:
     SENTRY_EVENT_RETENTION_DAYS:
+    SENTRY_POSTGRES_HOST:
+    SENTRY_DB_NAME:
+    SENTRY_DB_USER:
+    SENTRY_DB_PASSWORD:
     SENTRY_MAIL_HOST:
     SENTRY_MAX_EXTERNAL_SOURCEMAP_SIZE:
     # Set this value if you plan on using the Suggested Fix Feature
     OPENAI_API_KEY:
+    SENTRY_GOOGLE_CLIENT_ID:
+    SENTRY_GOOGLE_CLIENT_SECRET:
+    SENTRY_SLACK_CLIENT_ID:
+    SENTRY_SLACK_CLIENT_SECRET:
+    SENTRY_SLACK_VERIFICATION_TOKEN:
+    SENTRY_GITHUB_APP_ID:
+    SENTRY_GITHUB_APP_NAME:
+    SENTRY_GITHUB_APP_WEBHOOK_SECRET:
+    SENTRY_GITHUB_APP_PRIVATE_KEY:
+    SENTRY_GITHUB_APP_CLIENT_ID:
+    SENTRY_GITHUB_APP_CLIENT_SECRET:
   volumes:
     - "sentry-data:/data"
     - "./sentry:/etc/sentry"
@@ -129,33 +146,6 @@ services:
       nofile:
         soft: 10032
         hard: 10032
-  postgres:
-    <<: *restart_policy
-    # Using the same postgres version as Sentry dev for consistency purposes
-    image: "postgres:14.5"
-    healthcheck:
-      <<: *healthcheck_defaults
-      # Using default user "postgres" from sentry/sentry.conf.example.py or value of POSTGRES_USER if provided
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-    command:
-      [
-        "postgres",
-        "-c",
-        "wal_level=logical",
-        "-c",
-        "max_replication_slots=1",
-        "-c",
-        "max_wal_senders=1",
-      ]
-    environment:
-      POSTGRES_HOST_AUTH_METHOD: "trust"
-    entrypoint: /opt/sentry/postgres-entrypoint.sh
-    volumes:
-      - "sentry-postgres:/var/lib/postgresql/data"
-      - type: bind
-        read_only: true
-        source: ./postgres/
-        target: /opt/sentry/
   zookeeper:
     <<: *restart_policy
     image: "confluentinc/cp-zookeeper:5.5.7"
@@ -443,8 +433,6 @@ services:
 volumes:
   # These store application data that should persist across restarts.
   sentry-data:
-    external: true
-  sentry-postgres:
     external: true
   sentry-redis:
     external: true
