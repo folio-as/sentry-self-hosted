@@ -39,15 +39,30 @@ def get_internal_network():
 
 INTERNAL_SYSTEM_IPS = (get_internal_network(),)
 
+postgres_host = env("SENTRY_POSTGRES_HOST")
+if not postgres_host:
+    raise Exception("Error: SENTRY_POSTGRES_HOST must be set")
+
+db_name = env("SENTRY_DB_NAME")
+if not db_name:
+    raise Exception("Error: SENTRY_DB_NAME must be set")
+
+db_user = env("SENTRY_DB_USER")
+if not db_user:
+    raise Exception("Error: SENTRY_DB_USER must be set")
+
+db_password = env("SENTRY_DB_PASSWORD")
+if not db_password:
+    raise Exception("Error: SENTRY_DB_PASSWORD must be set")
 
 DATABASES = {
     "default": {
         "ENGINE": "sentry.db.postgres",
-        "NAME": "postgres",
-        "USER": "postgres",
-        "PASSWORD": "",
-        "HOST": "postgres",
-        "PORT": "",
+        "NAME": db_name,
+        "USER": db_user,
+        "PASSWORD": db_password,
+        "HOST": postgres_host,
+        "PORT": (env("SENTRY_POSTGRES_PORT") or ""),
     }
 }
 
@@ -62,6 +77,16 @@ SENTRY_USE_BIG_INTS = True
 # General #
 ###########
 
+# If this value ever becomes compromised, it's important to regenerate your
+# SENTRY_SECRET_KEY. Changing this value will result in all current sessions
+# being invalidated.
+secret_key = env("SENTRY_SECRET_KEY")
+if not secret_key:
+    raise Exception(
+        "Error: SENTRY_SECRET_KEY is undefined, run `generate-secret-key` and set to -e SENTRY_SECRET_KEY"
+    )
+SENTRY_OPTIONS["system.secret-key"] = secret_key
+
 # Instruct Sentry that this install intends to be run by a single organization
 # and thus various UI optimizations should be enabled.
 SENTRY_SINGLE_ORGANIZATION = True
@@ -69,6 +94,31 @@ SENTRY_SINGLE_ORGANIZATION = True
 SENTRY_OPTIONS["system.event-retention-days"] = int(
     env("SENTRY_EVENT_RETENTION_DAYS", "90")
 )
+
+def require_env(name):
+    value = env(name)
+    if not value:
+        raise Exception(f"Error: {name} must be set")
+    return value
+
+SENTRY_OPTIONS["system.url-prefix"] = require_env("SENTRY_URL_PREFIX")
+
+# Login with Google SSO
+SENTRY_OPTIONS["auth-google.client-id"]     = require_env("SENTRY_GOOGLE_CLIENT_ID")
+SENTRY_OPTIONS["auth-google.client-secret"] = require_env("SENTRY_GOOGLE_CLIENT_SECRET")
+
+# Slack client
+SENTRY_OPTIONS["slack.client-id"]          = require_env("SENTRY_SLACK_CLIENT_ID")
+SENTRY_OPTIONS["slack.client-secret"]      = require_env("SENTRY_SLACK_CLIENT_SECRET")
+SENTRY_OPTIONS["slack.verification-token"] = require_env("SENTRY_SLACK_VERIFICATION_TOKEN")
+
+# GitHub app
+SENTRY_OPTIONS["github-app.id"]             = int(require_env("SENTRY_GITHUB_APP_ID"))
+SENTRY_OPTIONS["github-app.name"]           = require_env("SENTRY_GITHUB_APP_NAME")
+SENTRY_OPTIONS["github-app.webhook-secret"] = env("SENTRY_GITHUB_APP_WEBHOOK_SECRET", "")
+SENTRY_OPTIONS["github-app.private-key"]    = require_env("SENTRY_GITHUB_APP_PRIVATE_KEY")
+SENTRY_OPTIONS["github-app.client-id"]      = require_env("SENTRY_GITHUB_APP_CLIENT_ID")
+SENTRY_OPTIONS["github-app.client-secret"]  = require_env("SENTRY_GITHUB_APP_CLIENT_SECRET")
 
 #########
 # Redis #
