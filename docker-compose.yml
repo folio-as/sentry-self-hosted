@@ -34,11 +34,11 @@ x-sentry-defaults: &sentry_defaults
       <<: *depends_on-default
     snuba-api:
       <<: *depends_on-default
-    snuba-consumer:
+    snuba-errors-consumer:
       <<: *depends_on-default
     snuba-outcomes-consumer:
       <<: *depends_on-default
-    snuba-sessions-consumer:
+    snuba-outcomes-billing-consumer:
       <<: *depends_on-default
     snuba-transactions-consumer:
       <<: *depends_on-default
@@ -80,7 +80,6 @@ x-sentry-defaults: &sentry_defaults
     SENTRY_DB_PASSWORD:
     SENTRY_MAIL_HOST:
     SENTRY_MAX_EXTERNAL_SOURCEMAP_SIZE:
-    # Set this value if you plan on using the Suggested Fix Feature
     OPENAI_API_KEY:
     SENTRY_GOOGLE_CLIENT_ID:
     SENTRY_GOOGLE_CLIENT_SECRET:
@@ -121,6 +120,7 @@ x-snuba-defaults: &snuba_defaults
 services:
   smtp:
     <<: *restart_policy
+    platform: linux/amd64
     image: tianon/exim4
     hostname: "${SENTRY_MAIL_HOST:-}"
     volumes:
@@ -128,7 +128,7 @@ services:
       - "sentry-smtp-log:/var/log/exim4"
   memcached:
     <<: *restart_policy
-    image: "memcached:1.6.21-alpine"
+    image: "memcached:1.6.26-alpine"
     command: ["-I", "${SENTRY_MAX_EXTERNAL_SOURCEMAP_SIZE:-1M}"]
     healthcheck:
       <<: *healthcheck_defaults
@@ -136,7 +136,7 @@ services:
       test: echo stats | nc 127.0.0.1 11211
   redis:
     <<: *restart_policy
-    image: "redis:6.2.12-alpine"
+    image: "redis:6.2.14-alpine"
     healthcheck:
       <<: *healthcheck_defaults
       test: redis-cli ping
@@ -234,58 +234,74 @@ services:
       timeout: 10s
       retries: 30
   geoipupdate:
-    image: "maxmindinc/geoipupdate:v6.0.0"
+    image: "ghcr.io/maxmind/geoipupdate:v6.1.0"
     # Override the entrypoint in order to avoid using envvars for config.
     # Futz with settings so we can keep mmdb and conf in same dir on host
     # (image looks for them in separate dirs by default).
-    entrypoint:
-      ["/usr/bin/geoipupdate", "-d", "/sentry", "-f", "/sentry/GeoIP.conf"]
+    entrypoint: ["/usr/bin/geoipupdate", "-d", "/sentry", "-f", "/sentry/GeoIP.conf"]
     volumes:
       - "./geoip:/sentry"
   snuba-api:
     <<: *snuba_defaults
   # Kafka consumer responsible for feeding events into Clickhouse
-  snuba-consumer:
+  snuba-errors-consumer:
     <<: *snuba_defaults
-    command: consumer --storage errors --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset
+    command: rust-consumer --storage errors --consumer-group snuba-consumers --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset --no-skip-write
   # Kafka consumer responsible for feeding outcomes into Clickhouse
   # Use --auto-offset-reset=earliest to recover up to 7 days of TSDB data
   # since we did not do a proper migration
   snuba-outcomes-consumer:
     <<: *snuba_defaults
-    command: consumer --storage outcomes_raw --auto-offset-reset=earliest --max-batch-time-ms 750 --no-strict-offset-reset
-  # Kafka consumer responsible for feeding session data into Clickhouse
-  snuba-sessions-consumer:
+    command: rust-consumer --storage outcomes_raw --consumer-group snuba-consumers --auto-offset-reset=earliest --max-batch-time-ms 750 --no-strict-offset-reset --no-skip-write
+  snuba-outcomes-billing-consumer:
     <<: *snuba_defaults
-    command: consumer --storage sessions_raw --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset
+    command: rust-consumer --storage outcomes_raw --consumer-group snuba-consumers --auto-offset-reset=earliest --max-batch-time-ms 750 --no-strict-offset-reset --no-skip-write --raw-events-topic outcomes-billing
   # Kafka consumer responsible for feeding transactions data into Clickhouse
   snuba-transactions-consumer:
     <<: *snuba_defaults
-    command: consumer --storage transactions --consumer-group transactions_group --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset
+    command: rust-consumer --storage transactions --consumer-group transactions_group --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset --no-skip-write
   snuba-replays-consumer:
     <<: *snuba_defaults
-    command: consumer --storage replays --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset
+    command: rust-consumer --storage replays --consumer-group snuba-consumers --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset --no-skip-write
   snuba-issue-occurrence-consumer:
     <<: *snuba_defaults
-    command: consumer --storage search_issues --consumer-group generic_events_group --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset
+    command: rust-consumer --storage search_issues --consumer-group generic_events_group --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset --no-skip-write
+  snuba-metrics-consumer:
+    <<: *snuba_defaults
+    command: rust-consumer --storage metrics_raw --consumer-group snuba-metrics-consumers --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset --no-skip-write
+  snuba-group-attributes-consumer:
+    <<: *snuba_defaults
+    command: rust-consumer --storage group_attributes --consumer-group snuba-group-attributes-consumers --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset --no-skip-write
+  snuba-generic-metrics-distributions-consumer:
+    <<: *snuba_defaults
+    command: rust-consumer --storage generic_metrics_distributions_raw --consumer-group snuba-gen-metrics-distributions-consumers --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset --no-skip-write
+  snuba-generic-metrics-sets-consumer:
+    <<: *snuba_defaults
+    command: rust-consumer --storage generic_metrics_sets_raw --consumer-group snuba-gen-metrics-sets-consumers --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset --no-skip-write
+  snuba-generic-metrics-counters-consumer:
+    <<: *snuba_defaults
+    command: rust-consumer --storage generic_metrics_counters_raw --consumer-group snuba-gen-metrics-counters-consumers --auto-offset-reset=latest --max-batch-time-ms 750 --no-strict-offset-reset --no-skip-write
   snuba-replacer:
     <<: *snuba_defaults
     command: replacer --storage errors --auto-offset-reset=latest --no-strict-offset-reset
   snuba-subscription-consumer-events:
     <<: *snuba_defaults
-    command: subscriptions-scheduler-executor --dataset events --entity events --auto-offset-reset=latest --no-strict-offset-reset --consumer-group=snuba-events-subscriptions-consumers --followed-consumer-group=snuba-consumers --delay-seconds=60 --schedule-ttl=60 --stale-threshold-seconds=900
-  snuba-subscription-consumer-sessions:
-    <<: *snuba_defaults
-    command: subscriptions-scheduler-executor --dataset sessions --entity sessions --auto-offset-reset=latest --no-strict-offset-reset --consumer-group=snuba-sessions-subscriptions-consumers --followed-consumer-group=sessions-group --delay-seconds=60 --schedule-ttl=60 --stale-threshold-seconds=900
+    command: subscriptions-scheduler-executor --dataset events --entity events --auto-offset-reset=latest --no-strict-offset-reset --consumer-group=snuba-events-subscriptions-consumers --followed-consumer-group=snuba-consumers --schedule-ttl=60 --stale-threshold-seconds=900
   snuba-subscription-consumer-transactions:
     <<: *snuba_defaults
-    command: subscriptions-scheduler-executor --dataset transactions --entity transactions --auto-offset-reset=latest --no-strict-offset-reset --consumer-group=snuba-transactions-subscriptions-consumers --followed-consumer-group=transactions_group --delay-seconds=60 --schedule-ttl=60 --stale-threshold-seconds=900
+    command: subscriptions-scheduler-executor --dataset transactions --entity transactions --auto-offset-reset=latest --no-strict-offset-reset --consumer-group=snuba-transactions-subscriptions-consumers --followed-consumer-group=transactions_group --schedule-ttl=60 --stale-threshold-seconds=900
+  snuba-subscription-consumer-metrics:
+    <<: *snuba_defaults
+    command: subscriptions-scheduler-executor --dataset metrics --entity metrics_sets --entity metrics_counters --auto-offset-reset=latest --no-strict-offset-reset --consumer-group=snuba-metrics-subscriptions-consumers --followed-consumer-group=snuba-metrics-consumers --schedule-ttl=60 --stale-threshold-seconds=900
   snuba-profiling-profiles-consumer:
     <<: *snuba_defaults
-    command: consumer --storage profiles --auto-offset-reset=latest --max-batch-time-ms 1000 --no-strict-offset-reset
+    command: rust-consumer --storage profiles --consumer-group snuba-consumers --auto-offset-reset=latest --max-batch-time-ms 1000 --no-strict-offset-reset --no-skip-write
   snuba-profiling-functions-consumer:
     <<: *snuba_defaults
-    command: consumer --storage functions_raw --auto-offset-reset=latest --max-batch-time-ms 1000 --no-strict-offset-reset
+    command: rust-consumer --storage functions_raw --consumer-group snuba-consumers --auto-offset-reset=latest --max-batch-time-ms 1000 --no-strict-offset-reset --no-skip-write
+  snuba-spans-consumer:
+    <<: *snuba_defaults
+    command: rust-consumer --storage spans --consumer-group snuba-spans-consumers --auto-offset-reset=latest --max-batch-time-ms 1000 --no-strict-offset-reset --no-skip-write
   symbolicator:
     <<: *restart_policy
     image: "$SYMBOLICATOR_IMAGE"
@@ -335,6 +351,15 @@ services:
   transactions-consumer:
     <<: *sentry_defaults
     command: run consumer ingest-transactions --consumer-group ingest-consumer
+  metrics-consumer:
+    <<: *sentry_defaults
+    command: run consumer ingest-metrics --consumer-group metrics-consumer
+  generic-metrics-consumer:
+    <<: *sentry_defaults
+    command: run consumer ingest-generic-metrics --consumer-group generic-metrics-consumer
+  billing-metrics-consumer:
+    <<: *sentry_defaults
+    command: run consumer billing-metrics-consumer --consumer-group billing-metrics-consumer
   ingest-replay-recordings:
     <<: *sentry_defaults
     command: run consumer ingest-replay-recordings --consumer-group ingest-replay-recordings
@@ -344,6 +369,9 @@ services:
   ingest-profiles:
     <<: *sentry_defaults
     command: run consumer --no-strict-offset-reset ingest-profiles --consumer-group ingest-profiles
+  ingest-monitors:
+    <<: *sentry_defaults
+    command: run consumer --no-strict-offset-reset ingest-monitors --consumer-group ingest-monitors
   post-process-forwarder-errors:
     <<: *sentry_defaults
     command: run consumer post-process-forwarder-errors --consumer-group post-process-forwarder --synchronize-commit-log-topic=snuba-commit-log --synchronize-commit-group=snuba-consumers
@@ -359,6 +387,12 @@ services:
   subscription-consumer-transactions:
     <<: *sentry_defaults
     command: run consumer transactions-subscription-results --consumer-group query-subscription-consumer
+  subscription-consumer-metrics:
+    <<: *sentry_defaults
+    command: run consumer metrics-subscription-results --consumer-group query-subscription-consumer
+  subscription-consumer-generic-metrics:
+    <<: *sentry_defaults
+    command: run consumer generic-metrics-subscription-results --consumer-group query-subscription-consumer
   sentry-cleanup:
     <<: *sentry_defaults
     image: sentry-cleanup-self-hosted-local
@@ -372,7 +406,7 @@ services:
     <<: *restart_policy
     ports:
       - "$SENTRY_BIND:80/tcp"
-    image: "nginx:1.25.1-alpine"
+    image: "nginx:1.25.4-alpine"
     volumes:
       - type: bind
         read_only: true
