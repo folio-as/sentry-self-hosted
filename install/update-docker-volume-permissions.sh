@@ -6,9 +6,11 @@ if [[ "$DOCKER_PLATFORM" = "linux/amd64" && -n "$(docker volume ls -q -f name=se
   zookeeper_data_dir="/var/lib/docker/volumes/sentry-zookeeper/_data"
   kafka_data_dir="/var/lib/docker/volumes/sentry-kafka/_data"
   zookeeper_log_data_dir="/var/lib/docker/volumes/${COMPOSE_PROJECT_NAME}_sentry-zookeeper-log/_data"
-  chmod -R a+w $zookeeper_data_dir $kafka_data_dir $zookeeper_log_data_dir && returncode=$? || returncode=$?
+  sudo chmod -R a+w $zookeeper_data_dir $kafka_data_dir $zookeeper_log_data_dir && returncode=$? || returncode=$?
   if [[ $returncode == "1" ]]; then
     echo "WARNING: Error when setting appropriate permissions for zookeeper, kafka, and zookeeper log docker volumes. This may corrupt your self-hosted install. See https://github.com/confluentinc/kafka-images/issues/127 for context on why this was added."
+    # Abort if this fails – it means something is wrong with the volume configuration.
+    exit 1
   fi
 fi
 
