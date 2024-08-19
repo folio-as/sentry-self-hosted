@@ -5,6 +5,5 @@ echo "Created $(docker volume create --name=sentry-data)."
 echo "Created $(docker volume create --name=sentry-kafka)."
 echo "Created $(docker volume create --name=sentry-redis)."
 echo "Created $(docker volume create --name=sentry-symbolicator)."
-echo "Created $(docker volume create --name=sentry-zookeeper)."
 
 echo "${_endgroup}"
