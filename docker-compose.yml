@@ -124,9 +124,13 @@ services:
     image: "redis:6.2.14-alpine"
     healthcheck:
       <<: *healthcheck_defaults
-      test: redis-cli ping
+      test: redis-cli ping | grep PONG
     volumes:
       - "sentry-redis:/data"
+      - type: bind
+        read_only: true
+        source: ./redis.conf
+        target: /usr/local/etc/redis/redis.conf
     ulimits:
       nofile:
         soft: 10032
@@ -456,8 +460,8 @@ services:
     volumes:
       - type: bind
         read_only: true
-        source: ./nginx
-        target: /etc/nginx
+        source: ./nginx.conf
+        target: /etc/nginx/nginx.conf
       - sentry-nginx-cache:/var/cache/nginx
       - sentry-nginx-www:/var/www
     depends_on:
