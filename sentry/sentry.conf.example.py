@@ -97,6 +97,18 @@ SENTRY_OPTIONS["system.event-retention-days"] = int(
     env("SENTRY_EVENT_RETENTION_DAYS", "90")
 )
 
+# Self-hosted Sentry infamously has a lot of Docker containers required to make
+# all the features work. Oftentimes, users don't use the full feature set that
+# requires all the containers. This is a way to enable only the error monitoring
+# feature which also reduces the amount of containers required to run Sentry.
+#
+# To make Sentry work with all features, set `COMPOSE_PROFILES` to `feature-complete`
+# in your `.env` file. To enable only the error monitoring feature, set
+# `COMPOSE_PROFILES` to `errors-only`.
+#
+# See https://develop.sentry.dev/self-hosted/experimental/errors-only/
+SENTRY_SELF_HOSTED_ERRORS_ONLY = env("COMPOSE_PROFILES") != "feature-complete"
+
 def require_env(name):
     value = env(name)
     if not value:
@@ -121,6 +133,8 @@ SENTRY_OPTIONS["github-app.webhook-secret"] = env("SENTRY_GITHUB_APP_WEBHOOK_SEC
 SENTRY_OPTIONS["github-app.private-key"]    = require_env("SENTRY_GITHUB_APP_PRIVATE_KEY")
 SENTRY_OPTIONS["github-app.client-id"]      = require_env("SENTRY_GITHUB_APP_CLIENT_ID")
 SENTRY_OPTIONS["github-app.client-secret"]  = require_env("SENTRY_GITHUB_APP_CLIENT_SECRET")
+
+
 
 #########
 # Redis #
@@ -422,10 +436,6 @@ CSP_REPORT_ONLY = True
 # your `.env` or `.env.custom` file. The files should only be a few KBs, and this might be useful
 # if you're using it directly like a CDN instead of using the loader script.
 JS_SDK_LOADER_DEFAULT_SDK_URL = "https://browser.sentry-cdn.com/%s/bundle%s.min.js"
-
-
-# If you would like to use self-hosted Sentry with only errors enabled, please set this
-SENTRY_SELF_HOSTED_ERRORS_ONLY = env("COMPOSE_PROFILES") != "feature-complete"
 
 #####################
 # Insights Settings #
