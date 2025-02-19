@@ -1,8 +1,7 @@
 echo "${_group}Setting up / migrating database ..."
 
-if [[ -z "${SKIP_DB_MIGRATIONS:-}" ]]; then
-# Fixes https://github.com/getsentry/self-hosted/issues/2758, where a migration fails due to indexing issue
-  # Using django ORM to provide broader support for users with external databases
+if [[ -z "${SKIP_SENTRY_MIGRATIONS:-}" ]]; then
+  # Fixes https://github.com/getsentry/self-hosted/issues/2758, where a migration fails due to indexing issue
   $dcr web shell -c "
 from django.db import connection
 
@@ -23,7 +22,6 @@ with connection.cursor() as cursor:
     $dcr web upgrade --create-kafka-topics
   fi
 else
-  echo "Skipped DB migrations due to SKIP_DB_MIGRATIONS=$SKIP_DB_MIGRATIONS"
+  echo "Skipped DB migrations due to SKIP_SENTRY_MIGRATIONS=$SKIP_SENTRY_MIGRATIONS"
 fi
-
 echo "${_endgroup}"
