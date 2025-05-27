@@ -68,10 +68,6 @@ DATABASES = {
     }
 }
 
-# You should not change this setting after your database has been created
-# unless you have altered all schemas first
-SENTRY_USE_BIG_INTS = True
-
 # If you're expecting any kind of real traffic on Sentry, we highly recommend
 # configuring the CACHES and Redis settings
 
@@ -252,15 +248,6 @@ SENTRY_TAGSTORE_OPTIONS = {}
 
 SENTRY_DIGESTS = "sentry.digests.backends.redis.RedisBackend"
 
-###################
-# Metrics Backend #
-###################
-
-SENTRY_RELEASE_HEALTH = "sentry.release_health.metrics.MetricsReleaseHealthBackend"
-SENTRY_RELEASE_MONITOR = (
-    "sentry.release_health.release_monitor.metrics.MetricReleaseMonitorBackend"
-)
-
 ##############
 # Web Server #
 ##############
@@ -329,13 +316,11 @@ SENTRY_FEATURES.update(
         feature: True
         for feature in (
             "organizations:discover",
-            "organizations:events",
             "organizations:global-views",
             "organizations:incidents",
             "organizations:integrations-issue-basic",
             "organizations:integrations-issue-sync",
             "organizations:invite-members",
-            "organizations:metric-alert-builder-aggregate",
             "organizations:sso-basic",
             "organizations:sso-rippling",
             "organizations:sso-saml2",
@@ -350,6 +335,8 @@ SENTRY_FEATURES.update(
             "organizations:dashboards-rh-widget",
             "organizations:metrics-extraction",
             "organizations:transaction-metrics-extraction",
+            "organizations:trace-view-v1",
+            "organizations:dynamic-sampling",
             "projects:custom-inbound-filters",
             "projects:data-forwarding",
             "projects:discard-groups",
@@ -448,3 +435,21 @@ JS_SDK_LOADER_DEFAULT_SDK_URL = "https://browser.sentry-cdn.com/%s/bundle%s.min.
 # to allow specific hosts. It might be IP addresses or domain names (without `http://` or `https://`).
 
 # SENTRY_OPTIONS["relay.span-normalization.allowed_hosts"] = ["example.com", "192.168.10.1"]
+
+##############
+# Monitoring #
+##############
+
+# By default, Sentry uses dummy statsd monitoring backend that is a no-op.
+# If you have a statsd server, you can utilize that to monitor self-hosted
+# Sentry for "sentry"-related containers.
+#
+# To start, uncomment the following line and adjust the options as needed.
+
+# SENTRY_METRICS_BACKEND = 'sentry.metrics.statsd.StatsdMetricsBackend'
+# SENTRY_METRICS_OPTIONS: dict[str, Any] = {
+#     'host': '100.100.123.123', # It is recommended to use IP address instead of domain name
+#     'port': 8125,
+# }
+# SENTRY_METRICS_SAMPLE_RATE = 1.0   # Adjust this to your needs, default is 1.0
+# SENTRY_METRICS_PREFIX = "sentry."  # Adjust this to your needs, default is "sentry."

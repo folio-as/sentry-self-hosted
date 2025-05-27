@@ -1,13 +1,3 @@
-set -euo pipefail
-test "${DEBUG:-}" && set -x
-
-# Override any user-supplied umask that could cause problems, see #1222
-umask 002
-
-# Thanks to https://unix.stackexchange.com/a/145654/108960
-log_file=sentry_install_log-$(date +'%Y-%m-%d_%H-%M-%S').txt
-exec &> >(tee -a "$log_file")
-
 # Allow `.env` overrides using the `.env.custom` file.
 # We pass this to docker compose in a couple places.
 if [[ -f .env.custom ]]; then
@@ -51,6 +41,11 @@ function ensure_file_from_example {
     echo "Creating $target ..."
     cp -n "$example" "$target"
   fi
+}
+
+# Check the version of $1 is greater than or equal to $2 using sort. Note: versions must be stripped of "v"
+function vergte() {
+  printf "%s\n%s" $1 $2 | sort --version-sort --check=quiet --reverse
 }
 
 SENTRY_CONFIG_PY=sentry/sentry.conf.py
