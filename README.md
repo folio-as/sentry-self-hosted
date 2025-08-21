@@ -55,3 +55,11 @@ When a new version of Self-Hosted Sentry is released, we can upgrade to it as fo
 8. `$ git push --tags` (push the tag)
 9. Head over to the `infra` repo and
    follow [the steps to deploy a new version](https://github.com/folio-as/infra/tree/master/pulumi/sentry).
+
+### Restart
+
+Working on it. Don't restart manually. Restart through Pulumi! Otherwise you won't have the required
+environment variables.
+
+You must possibly trick Pulumi into thinking it's doing an actual upgrade to do this, creating a new tag.
+Creating a tag that points to the same git ref doesn't seem to work.
